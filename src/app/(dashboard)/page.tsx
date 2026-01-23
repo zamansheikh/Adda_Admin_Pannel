@@ -37,28 +37,28 @@ export default function DashboardPage() {
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-slate-100 mb-2">Dashboard</h1>
-                <p className="text-slate-400">
+                <h1 className="text-2xl md:text-3xl font-bold text-slate-100 mb-2">Dashboard</h1>
+                <p className="text-sm md:text-base text-slate-400">
                     Overview of your AddaLive platform performance
                 </p>
             </div>
 
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {/* Stats Grid - Responsive: 1 col mobile, 2 tablet, 4 desktop */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 md:gap-6">
                 {stats.map((stat, index) => {
                     const Icon = stat.icon;
                     return (
                         <Card key={index} variant="glass" className="hover:scale-105 transition-transform duration-200">
-                            <CardContent className="p-6">
+                            <CardContent className="p-4 md:p-6">
                                 <div className="flex items-start justify-between">
                                     <div>
-                                        <p className="text-slate-400 text-sm font-medium">
+                                        <p className="text-slate-400 text-xs md:text-sm font-medium">
                                             {stat.label}
                                         </p>
-                                        <h3 className="text-3xl font-bold text-slate-100 mt-2">
+                                        <h3 className="text-2xl md:text-3xl font-bold text-slate-100 mt-2">
                                             {stat.value}
                                         </h3>
                                         <p className="text-sm text-green-400 mt-2 flex items-center gap-1">
