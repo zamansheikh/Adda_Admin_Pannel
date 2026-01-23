@@ -1,0 +1,36 @@
+name: Deploy Admin Panel to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no root@88.222.213.235 "
+            export PATH=/root/.nvm/versions/node/v20.19.5/bin:\$PATH &&
+            cd ~/zhz/Adda_Admin_Pannel &&
+            git stash &&
+            git pull origin main &&
+            npm install &&
+            npm run build &&
+            if tmux has-session -t Adda_Admin_Pannel 2>/dev/null; then
+              echo \"Already session running: Adda_Admin_Pannel. Killing it...\"
+              tmux kill-session -t Adda_Admin_Pannel
+            fi &&
+            echo \"Starting new session: Adda_Admin_Pannel\" &&
+            tmux new-session -d -s Adda_Admin_Pannel 'npm start' &&
+            echo \"Successfully started 'npm start' in tmux session Adda_Admin_Pannel\"
+          "
