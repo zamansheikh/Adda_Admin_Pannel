@@ -55,7 +55,7 @@ export const navigationConfig: NavigationItem[] = [
         label: "Access Control",
         icon: Shield,
         children: [
-            { label: "Roles", href: "/access/roles" },
+            { label: "Role Management", href: "/roles" },
             { label: "Permissions", href: "/access/permissions" },
             { label: "Portal Users", href: "/access/portal-users" },
         ],
