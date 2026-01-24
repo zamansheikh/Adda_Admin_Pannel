@@ -17,7 +17,17 @@ import {
     X,
     Check,
     ChevronDown,
+    Coins,
 } from "lucide-react";
+
+// Helper to safely get stats
+const getStats = (user: User) => {
+    return {
+        stars: user.stats?.stars || user.stars || 0,
+        diamonds: user.stats?.diamonds || user.diamonds || 0,
+        coins: user.stats?.coins || user.totalBoughtCoins || user.coins || 0
+    };
+};
 
 export default function RolesPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -43,8 +53,8 @@ export default function RolesPage() {
         try {
             setLoading(true);
             setError("");
-            const data = await rolesApi.getUsersByRole(selectedRole);
-            setUsers(Array.isArray(data) ? data : []);
+            const response = await rolesApi.getUsersByRole(selectedRole);
+            setUsers(response.users || []);
         } catch (err) {
             console.error("Failed to fetch users:", err);
             setError("Failed to load users");
@@ -65,20 +75,22 @@ export default function RolesPage() {
     );
 
     const openRoleModal = (user: User) => {
-        setNewRole(user.role || "user");
+        setNewRole(user.userRole || user.role || "user");
         setActionModal({ type: "role", user });
     };
 
     const openZoneModal = (user: User) => {
-        setNewZone((user.activityZone as typeof newZone) || "safe");
+        const currentZone = user.activityZone?.zone || "safe";
+        setNewZone(currentZone as typeof newZone);
         setZoneTillDate("");
         setActionModal({ type: "zone", user });
     };
 
     const openStatsModal = (user: User) => {
+        const stats = getStats(user);
         setStatsForm({
-            stars: user.stars || 0,
-            diamonds: user.diamonds || 0,
+            stars: stats.stars,
+            diamonds: stats.diamonds,
         });
         setActionModal({ type: "stats", user });
     };
@@ -108,9 +120,9 @@ export default function RolesPage() {
         try {
             setActionLoading(true);
             await rolesApi.updateActivityZone({
-                userId: actionModal.user._id,
+                id: actionModal.user._id,
                 zone: newZone,
-                ...(newZone === "temp_block" && zoneTillDate ? { dateTill: zoneTillDate } : {}),
+                ...(newZone === "temp_block" && zoneTillDate ? { dateTill: new Date(zoneTillDate).toISOString() } : {}),
             });
             closeModal();
             fetchUsers();
@@ -137,16 +149,16 @@ export default function RolesPage() {
         }
     };
 
-    const getRoleColor = (role: string) => {
+    const getRoleColor = (role?: string) => {
         return USER_ROLES.find((r) => r.value === role)?.color || "bg-slate-500";
     };
 
-    const getZoneColor = (zone?: string) => {
-        return ACTIVITY_ZONES.find((z) => z.value === zone)?.color || "bg-green-500";
+    const getZoneColor = (activityZone?: { zone?: string }) => {
+        return ACTIVITY_ZONES.find((z) => z.value === activityZone?.zone)?.color || "bg-green-500";
     };
 
-    const getZoneLabel = (zone?: string) => {
-        return ACTIVITY_ZONES.find((z) => z.value === zone)?.label || "Active";
+    const getZoneLabel = (activityZone?: { zone?: string }) => {
+        return ACTIVITY_ZONES.find((z) => z.value === activityZone?.zone)?.label || "Active";
     };
 
     return (
@@ -174,13 +186,22 @@ export default function RolesPage() {
 
             {/* Role Tabs */}
             <div className="flex flex-wrap gap-2">
+                <button
+                    onClick={() => setSelectedRole("all")}
+                    className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedRole === "all"
+                        ? "bg-indigo-600 text-white"
+                        : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                        }`}
+                >
+                    All
+                </button>
                 {USER_ROLES.map((role) => (
                     <button
                         key={role.value}
                         onClick={() => setSelectedRole(role.value)}
                         className={`px-4 py-2 rounded-lg font-medium text-sm transition-all ${selectedRole === role.value
-                                ? "bg-indigo-600 text-white"
-                                : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+                            ? "bg-indigo-600 text-white"
+                            : "bg-slate-800 text-slate-400 hover:bg-slate-700"
                             }`}
                     >
                         {role.label}
@@ -254,18 +275,18 @@ export default function RolesPage() {
                                             {/* User Info */}
                                             <div className="flex items-center gap-4">
                                                 <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                                                    {user.username?.charAt(0).toUpperCase() || "U"}
+                                                    {(user.username || user.name || "U").charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
                                                     <h3 className="font-semibold text-slate-100">
-                                                        {user.username || "Unknown"}
+                                                        {user.username || user.name || "Unknown"}
                                                     </h3>
                                                     <p className="text-sm text-slate-400">
                                                         {user.email || "No email"}
                                                     </p>
                                                     <div className="flex flex-wrap gap-2 mt-2">
-                                                        <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${getRoleColor(user.role)}`}>
-                                                            {user.role?.toUpperCase()}
+                                                        <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${getRoleColor(user.userRole || user.role)}`}>
+                                                            {(user.userRole || user.role || "user").toUpperCase()}
                                                         </span>
                                                         <span className={`px-2 py-0.5 rounded text-xs font-medium text-white ${getZoneColor(user.activityZone)}`}>
                                                             {getZoneLabel(user.activityZone)}
@@ -276,13 +297,17 @@ export default function RolesPage() {
 
                                             {/* Stats */}
                                             <div className="flex items-center gap-4">
-                                                <div className="flex items-center gap-1 text-amber-400">
+                                                <div className="flex items-center gap-1 text-amber-400" title="Stars">
                                                     <Star className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">{user.stars || 0}</span>
+                                                    <span className="text-sm font-medium">{getStats(user).stars.toLocaleString()}</span>
                                                 </div>
-                                                <div className="flex items-center gap-1 text-cyan-400">
+                                                <div className="flex items-center gap-1 text-cyan-400" title="Diamonds">
                                                     <Diamond className="w-4 h-4" />
-                                                    <span className="text-sm font-medium">{user.diamonds || 0}</span>
+                                                    <span className="text-sm font-medium">{getStats(user).diamonds.toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex items-center gap-1 text-yellow-500" title="Coins">
+                                                    <Coins className="w-4 h-4" />
+                                                    <span className="text-sm font-medium">{getStats(user).coins.toLocaleString()}</span>
                                                 </div>
                                             </div>
 
@@ -343,8 +368,8 @@ export default function RolesPage() {
                                         key={role.value}
                                         onClick={() => setNewRole(role.value)}
                                         className={`p-3 rounded-lg border-2 transition-all ${newRole === role.value
-                                                ? "border-indigo-500 bg-indigo-500/10"
-                                                : "border-slate-700 hover:border-slate-600"
+                                            ? "border-indigo-500 bg-indigo-500/10"
+                                            : "border-slate-700 hover:border-slate-600"
                                             }`}
                                     >
                                         <span className={`inline-block w-3 h-3 rounded-full ${role.color} mr-2`} />
@@ -386,8 +411,8 @@ export default function RolesPage() {
                                         key={zone.value}
                                         onClick={() => setNewZone(zone.value as typeof newZone)}
                                         className={`w-full p-3 rounded-lg border-2 transition-all flex items-center ${newZone === zone.value
-                                                ? "border-indigo-500 bg-indigo-500/10"
-                                                : "border-slate-700 hover:border-slate-600"
+                                            ? "border-indigo-500 bg-indigo-500/10"
+                                            : "border-slate-700 hover:border-slate-600"
                                             }`}
                                     >
                                         <span className={`inline-block w-3 h-3 rounded-full ${zone.color} mr-3`} />
