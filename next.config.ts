@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Allow dev server access from these origins
+  allowedDevOrigins: [
+    "http://88.222.213.235:3004",
+    "http://88.222.213.235:8000",
+    "https://admin.zigoliveapp.xyz",
+    "https://api.zigoliveapp.xyz",
+    "http://admin.zigoliveapp.xyz",
+  ],
 };
 
 export default nextConfig;
