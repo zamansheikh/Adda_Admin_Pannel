@@ -49,7 +49,7 @@ export default function UsersPage() {
     const [newRole, setNewRole] = useState("");
     const [newZone, setNewZone] = useState<"safe" | "temp_block" | "permanent_block">("safe");
     const [zoneTillDate, setZoneTillDate] = useState("");
-    const [statsForm, setStatsForm] = useState({ stars: 0, diamonds: 0 });
+    const [statsForm, setStatsForm] = useState({ stars: 0, diamonds: 0, coins: 0 });
 
     useEffect(() => {
         fetchUsers();
@@ -106,10 +106,10 @@ export default function UsersPage() {
     };
 
     const openStatsModal = (user: User) => {
-        const stats = getStats(user);
         setStatsForm({
-            stars: stats.stars,
-            diamonds: stats.diamonds,
+            stars: 0,
+            diamonds: 0,
+            coins: 0
         });
         setActiveModal({ type: "stats", user });
     };
@@ -157,9 +157,32 @@ export default function UsersPage() {
         if (!activeModal.user) return;
         try {
             setModalLoading(true);
-            await rolesApi.updateUserStats(activeModal.user._id, statsForm);
-            closeModal();
-            fetchUsers();
+            const promises = [];
+
+            // Handle Stars and Diamonds (updateUserStats)
+            if (statsForm.stars !== 0 || statsForm.diamonds !== 0) {
+                promises.push(rolesApi.updateUserStats(activeModal.user._id, {
+                    stars: statsForm.stars !== 0 ? statsForm.stars : undefined,
+                    diamonds: statsForm.diamonds !== 0 ? statsForm.diamonds : undefined
+                }));
+            }
+
+            // Handle Coins (assignCoins)
+            if (statsForm.coins !== 0) {
+                promises.push(rolesApi.assignCoins({
+                    userId: activeModal.user._id,
+                    coins: statsForm.coins,
+                    userRole: activeModal.user.userRole || activeModal.user.role || "user"
+                }));
+            }
+
+            if (promises.length > 0) {
+                await Promise.all(promises);
+                closeModal();
+                fetchUsers();
+            } else {
+                closeModal();
+            }
         } catch (err: any) {
             console.error("Failed to update stats:", err);
             setError(err.message || "Failed to update user stats");
@@ -537,43 +560,77 @@ export default function UsersPage() {
                         </div>
                         <div className="p-4 space-y-4">
                             <p className="text-slate-400">
-                                Update credits for <span className="text-white font-medium">{activeModal.user.username || activeModal.user.name}</span>
+                                Add or remove credits for <span className="text-white font-medium">{activeModal.user.username || activeModal.user.name}</span>
                             </p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <Star className="w-4 h-4 inline mr-1 text-amber-400" />
-                                        Stars
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={statsForm.stars}
-                                        onChange={(e) => setStatsForm({ ...statsForm, stars: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
+
+                            <div className="grid grid-cols-1 gap-4">
+                                {/* Stars */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-amber-400 flex items-center gap-1">
+                                            <Star className="w-4 h-4" /> Stars
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(activeModal.user).stars.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to add (e.g. 100 or -50)"
+                                            value={statsForm.stars === 0 ? "" : statsForm.stars}
+                                            onChange={(e) => setStatsForm({ ...statsForm, stars: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <Diamond className="w-4 h-4 inline mr-1 text-cyan-400" />
-                                        Diamonds
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={statsForm.diamonds}
-                                        onChange={(e) => setStatsForm({ ...statsForm, diamonds: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
+
+                                {/* Diamonds */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-cyan-400 flex items-center gap-1">
+                                            <Diamond className="w-4 h-4" /> Diamonds
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(activeModal.user).diamonds.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to add (e.g. 100 or -50)"
+                                            value={statsForm.diamonds === 0 ? "" : statsForm.diamonds}
+                                            onChange={(e) => setStatsForm({ ...statsForm, diamonds: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Coins */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-yellow-500 flex items-center gap-1">
+                                            <Coins className="w-4 h-4" /> Coins
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(activeModal.user).coins.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to transfer (e.g. 100 or -50)"
+                                            value={statsForm.coins === 0 ? "" : statsForm.coins}
+                                            onChange={(e) => setStatsForm({ ...statsForm, coins: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
                                 </div>
                             </div>
-                            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 text-sm text-amber-400">
-                                <strong>Note:</strong> This will directly set the user's stars and diamonds to the specified values.
+
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm text-blue-400">
+                                <strong>Note:</strong> Enter positive values to add credits, negative to remove. Coins are transferred from your balance.
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <Button variant="outline" className="flex-1" onClick={closeModal}>
                                     Cancel
                                 </Button>
                                 <Button className="flex-1" onClick={handleStatsUpdate} disabled={modalLoading}>
-                                    {modalLoading ? "Saving..." : "Update Credits"}
+                                    {modalLoading ? "Updating..." : "Update Credits"}
                                 </Button>
                             </div>
                         </div>

@@ -47,7 +47,7 @@ export default function RolesPage() {
     const [newRole, setNewRole] = useState("");
     const [newZone, setNewZone] = useState<"safe" | "temp_block" | "permanent_block">("safe");
     const [zoneTillDate, setZoneTillDate] = useState("");
-    const [statsForm, setStatsForm] = useState({ stars: 0, diamonds: 0 });
+    const [statsForm, setStatsForm] = useState({ stars: 0, diamonds: 0, coins: 0 });
 
     const fetchUsers = async () => {
         try {
@@ -87,10 +87,10 @@ export default function RolesPage() {
     };
 
     const openStatsModal = (user: User) => {
-        const stats = getStats(user);
         setStatsForm({
-            stars: stats.stars,
-            diamonds: stats.diamonds,
+            stars: 0,
+            diamonds: 0,
+            coins: 0
         });
         setActionModal({ type: "stats", user });
     };
@@ -138,12 +138,35 @@ export default function RolesPage() {
         if (!actionModal.user) return;
         try {
             setActionLoading(true);
-            await rolesApi.updateUserStats(actionModal.user._id, statsForm);
-            closeModal();
-            fetchUsers();
-        } catch (err) {
+            const promises = [];
+
+            // Handle Stars and Diamonds
+            if (statsForm.stars !== 0 || statsForm.diamonds !== 0) {
+                promises.push(rolesApi.updateUserStats(actionModal.user._id, {
+                    stars: statsForm.stars !== 0 ? statsForm.stars : undefined,
+                    diamonds: statsForm.diamonds !== 0 ? statsForm.diamonds : undefined
+                }));
+            }
+
+            // Handle Coins
+            if (statsForm.coins !== 0) {
+                promises.push(rolesApi.assignCoins({
+                    userId: actionModal.user._id,
+                    coins: statsForm.coins,
+                    userRole: actionModal.user.userRole || actionModal.user.role || "user"
+                }));
+            }
+
+            if (promises.length > 0) {
+                await Promise.all(promises);
+                closeModal();
+                fetchUsers();
+            } else {
+                closeModal();
+            }
+        } catch (err: any) {
             console.error("Failed to update stats:", err);
-            setError("Failed to update user stats");
+            setError(err.message || "Failed to update user stats");
         } finally {
             setActionLoading(false);
         }
@@ -445,52 +468,90 @@ export default function RolesPage() {
             )}
 
             {/* Stats Update Modal */}
+            {/* Stats Update Modal */}
             {actionModal.type === "stats" && actionModal.user && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
                     <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={closeModal} />
                     <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
                         <div className="flex items-center justify-between p-4 border-b border-slate-700">
-                            <h2 className="text-lg font-semibold text-slate-100">Update Stats</h2>
+                            <h2 className="text-lg font-semibold text-slate-100">Update Credits</h2>
                             <button onClick={closeModal} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
                                 <X className="w-5 h-5 text-slate-400" />
                             </button>
                         </div>
                         <div className="p-4 space-y-4">
                             <p className="text-slate-400">
-                                Update credits for <span className="text-white font-medium">{actionModal.user.username}</span>
+                                Add or remove credits for <span className="text-white font-medium">{actionModal.user.username}</span>
                             </p>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <Star className="w-4 h-4 inline mr-1 text-amber-400" />
-                                        Stars
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={statsForm.stars}
-                                        onChange={(e) => setStatsForm({ ...statsForm, stars: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
+
+                            <div className="grid grid-cols-1 gap-4">
+                                {/* Stars */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-amber-400 flex items-center gap-1">
+                                            <Star className="w-4 h-4" /> Stars
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(actionModal.user).stars.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to add (e.g. 100 or -50)"
+                                            value={statsForm.stars === 0 ? "" : statsForm.stars}
+                                            onChange={(e) => setStatsForm({ ...statsForm, stars: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">
-                                        <Diamond className="w-4 h-4 inline mr-1 text-cyan-400" />
-                                        Diamonds
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={statsForm.diamonds}
-                                        onChange={(e) => setStatsForm({ ...statsForm, diamonds: parseInt(e.target.value) || 0 })}
-                                        className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                    />
+
+                                {/* Diamonds */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-cyan-400 flex items-center gap-1">
+                                            <Diamond className="w-4 h-4" /> Diamonds
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(actionModal.user).diamonds.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to add (e.g. 100 or -50)"
+                                            value={statsForm.diamonds === 0 ? "" : statsForm.diamonds}
+                                            onChange={(e) => setStatsForm({ ...statsForm, diamonds: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
                                 </div>
+
+                                {/* Coins */}
+                                <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700">
+                                    <div className="flex justify-between mb-2">
+                                        <label className="text-sm font-medium text-yellow-500 flex items-center gap-1">
+                                            <Coins className="w-4 h-4" /> Coins
+                                        </label>
+                                        <span className="text-xs text-slate-400">Current: {getStats(actionModal.user).coins.toLocaleString()}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="number"
+                                            placeholder="Amount to transfer (e.g. 100 or -50)"
+                                            value={statsForm.coins === 0 ? "" : statsForm.coins}
+                                            onChange={(e) => setStatsForm({ ...statsForm, coins: parseInt(e.target.value) || 0 })}
+                                            className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3 text-sm text-blue-400">
+                                <strong>Note:</strong> Enter positive values to add credits, negative to remove. Coins are transferred from your balance.
                             </div>
                             <div className="flex gap-3 pt-2">
                                 <Button variant="outline" className="flex-1" onClick={closeModal}>
                                     Cancel
                                 </Button>
                                 <Button className="flex-1" onClick={handleStatsUpdate} disabled={actionLoading}>
-                                    {actionLoading ? "Saving..." : "Update Stats"}
+                                    {actionLoading ? "Updating..." : "Update Credits"}
                                 </Button>
                             </div>
                         </div>
