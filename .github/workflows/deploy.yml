@@ -20,17 +20,28 @@ jobs:
       - name: Deploy to VPS
         run: |
           ssh -o StrictHostKeyChecking=no root@88.222.213.235 "
-            export PATH=/root/.nvm/versions/node/v20.19.5/bin:\$PATH &&
+            # Load nvm and use Node 24
+            export NVM_DIR=\"\$HOME/.nvm\" &&
+            [ -s \"\$NVM_DIR/nvm.sh\" ] && . \"\$NVM_DIR/nvm.sh\" &&
+            nvm use 24 &&
+            
+            # Navigate to project directory
             cd ~/zhz/Adda_Admin_Pannel &&
+            
+            # Pull latest changes
             git stash &&
             git pull origin main &&
+            
+            # Install dependencies and build
             npm install &&
             npm run build &&
+            
+            # Restart tmux session
             if tmux has-session -t Adda_Admin_Pannel 2>/dev/null; then
               echo \"Already session running: Adda_Admin_Pannel. Killing it...\"
               tmux kill-session -t Adda_Admin_Pannel
             fi &&
             echo \"Starting new session: Adda_Admin_Pannel\" &&
-            tmux new-session -d -s Adda_Admin_Pannel 'npm start' &&
+            tmux new-session -d -s Adda_Admin_Pannel 'source ~/.nvm/nvm.sh && nvm use 24 && npm start' &&
             echo \"Successfully started 'npm start' in tmux session Adda_Admin_Pannel\"
           "
