@@ -35,10 +35,10 @@ export const navigationConfig: NavigationItem[] = [
         label: "Monetization",
         icon: Gift,
         children: [
-            { label: "Gifts", href: "/monetization/gifts" },
-            { label: "Gift Categories", href: "/monetization/gift-categories" },
-            { label: "Banners", href: "/monetization/banners" },
-            { label: "Posters", href: "/monetization/posters" },
+            { label: "Gifts", href: "/gifts" },
+            { label: "Gift Categories", href: "/gift-categories" },
+            { label: "Banners", href: "/banners" },
+            { label: "Posters", href: "/posters" },
         ],
     },
     {
