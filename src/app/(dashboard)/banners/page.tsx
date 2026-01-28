@@ -96,7 +96,7 @@ export default function BannersPage() {
             setError("");
 
             await bannersApi.createBanner({
-                alt: formData.alt || "Banner",
+                alt: formData.alt || "banner",
                 image: imageFile,
             });
 
@@ -116,7 +116,7 @@ export default function BannersPage() {
             const parts = url.split("/");
             return parts[parts.length - 1].substring(0, 30) + "...";
         } catch {
-            return "Banner Image";
+            return "banner image";
         }
     };
 
